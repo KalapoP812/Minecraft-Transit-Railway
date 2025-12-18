@@ -12,6 +12,7 @@ import org.mtr.libraries.com.google.gson.JsonObject;
 import org.mtr.libraries.it.unimi.dsi.fastutil.doubles.DoubleDoubleImmutablePair;
 import org.mtr.libraries.it.unimi.dsi.fastutil.doubles.DoubleObjectImmutablePair;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArraySet; // Import Added
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectObjectImmutablePair;
 import org.mtr.mapping.holder.*;
 import org.mtr.mapping.mapper.TextHelper;
@@ -40,6 +41,8 @@ public class VehicleExtension extends Vehicle implements Utilities {
 	private DoubleObjectImmutablePair<DoubleDoubleImmutablePair> platformStoppingDetails;
 
 	public final PersistentVehicleData persistentVehicleData;
+	// Added: Track rails physically occupied by the train
+	public final ObjectArraySet<String> physicallyOccupiedRails = new ObjectArraySet<>();
 
 	public VehicleExtension(VehicleUpdate vehicleUpdate, Data data) {
 		super(vehicleUpdate.getVehicleExtraData(), null, new JsonReader(Utilities.getJsonObjectFromData(vehicleUpdate.getVehicle())), data);
@@ -254,6 +257,15 @@ public class VehicleExtension extends Vehicle implements Utilities {
 		final int headIndex = Utilities.getIndexFromConditionalList(vehicleExtraData.immutablePath, railProgress - 1);
 		final int endIndex = Utilities.getIndexFromConditionalList(vehicleExtraData.immutablePath, railProgress - vehicleExtraData.getTotalVehicleLength());
 		final int endIndexPadded = Utilities.getIndexFromConditionalList(vehicleExtraData.immutablePath, railProgress - vehicleExtraData.getTotalVehicleLength() - padding);
+
+		// Added: Clear and populate physically occupied rails (no padding)
+		physicallyOccupiedRails.clear();
+		for (int i = Math.max(0, endIndex); i <= Math.min(vehicleExtraData.immutablePath.size() - 1, headIndex); i++) {
+			final PathData pathData = vehicleExtraData.immutablePath.get(i);
+			physicallyOccupiedRails.add(pathData.getHexId(false));
+			physicallyOccupiedRails.add(pathData.getHexId(true));
+		}
+
 		for (int i = Math.max(0, endIndexPadded); i <= Math.min(vehicleExtraData.immutablePath.size() - 1, headIndexPadded); i++) {
 			final PathData pathData = vehicleExtraData.immutablePath.get(i);
 			if (i > endIndexPadded && i <= headIndex) {

@@ -9,7 +9,7 @@ jobs:
         minecraft: [ 1.16.5, 1.17.1, 1.18.2, 1.19.2, 1.19.4, 1.20.1, 1.20.4 ]
     runs-on: ubuntu-latest
     env:
-      BUILD_ARTIFACTS: ${{ secrets.BUILD_ARTIFACTS }}
+      BUILD_ARTIFACTS: ${{ secrets.BUILD_ARTIFACTS || 'true' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@main

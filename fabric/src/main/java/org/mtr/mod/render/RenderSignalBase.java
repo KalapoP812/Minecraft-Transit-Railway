@@ -18,6 +18,7 @@ import org.mtr.mod.block.IBlock;
 import org.mtr.mod.client.IDrawing;
 import org.mtr.mod.client.MinecraftClientData;
 import org.mtr.mod.data.IGui;
+import org.mtr.mod.data.VehicleExtension; // Import Added
 
 import javax.annotation.Nullable;
 import java.util.Collections;
@@ -131,10 +132,27 @@ public abstract class RenderSignalBase<T extends BlockSignalBase.BlockEntityBase
 			if (Math.abs(Utilities.circularDifference(Math.round(Math.toDegrees(Math.atan2(endPosition.getZ() - startPos.getZ(), endPosition.getX() - startPos.getX()))), Math.round(angle), 360)) < 90) {
 				rail.getSignalColors().forEach(detectedColors::add);
 				final String railId = rail.getHexId();
-				minecraftClientData.railIdToCurrentlyBlockedSignalColors.getOrDefault(railId, new LongArrayList()).forEach(color -> occupiedColors.add((int) color));
-				if (minecraftClientData.blockedRailIds.contains(TwoPositionsBase.getHexIdRaw(startPosition, endPosition))) {
+
+				// MODIFIED LOGIC: Check physical occupancy instead of reservation/blocked status
+				// Old Code:
+				// minecraftClientData.railIdToCurrentlyBlockedSignalColors.getOrDefault(railId, new LongArrayList()).forEach(color -> occupiedColors.add((int) color));
+				// if (minecraftClientData.blockedRailIds.contains(TwoPositionsBase.getHexIdRaw(startPosition, endPosition))) {
+				//	blocked[0] = true;
+				// }
+
+				boolean isPhysicallyOccupied = false;
+				for (VehicleExtension vehicle : minecraftClientData.vehicles) {
+					if (vehicle.physicallyOccupiedRails.contains(railId)) {
+						isPhysicallyOccupied = true;
+						break;
+					}
+				}
+
+				if (isPhysicallyOccupied) {
+					rail.getSignalColors().forEach(color -> occupiedColors.add((int) color));
 					blocked[0] = true;
 				}
+
 				railIds.add(railId);
 			}
 		});
