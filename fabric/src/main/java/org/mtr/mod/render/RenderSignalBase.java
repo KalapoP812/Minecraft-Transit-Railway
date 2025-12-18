@@ -1,6 +1,7 @@
 package org.mtr.mod.render;
 
 import org.mtr.core.data.Position;
+import org.mtr.core.data.Rail;
 import org.mtr.core.data.TwoPositionsBase;
 import org.mtr.core.tool.Utilities;
 import org.mtr.libraries.it.unimi.dsi.fastutil.ints.IntAVLTreeSet;
@@ -18,10 +19,13 @@ import org.mtr.mod.block.IBlock;
 import org.mtr.mod.client.IDrawing;
 import org.mtr.mod.client.MinecraftClientData;
 import org.mtr.mod.data.IGui;
-import org.mtr.mod.data.VehicleExtension; // Import Added
+import org.mtr.mod.data.RailType;
 
 import javax.annotation.Nullable;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 public abstract class RenderSignalBase<T extends BlockSignalBase.BlockEntityBase> extends BlockEntityRenderer<T> implements IBlock, IGui {
 
@@ -91,9 +95,21 @@ public abstract class RenderSignalBase<T extends BlockSignalBase.BlockEntityBase
 					}
 				}
 
-				// If filters are empty, render all signal states, including node states
-				// If filters are not empty, only render the signal state of the selected colors, even if the colors don't exist
-				final int occupiedAspect = entity.getActualAspect(filterColors.isEmpty() && aspectState.nodeBlocked || aspectState.occupiedColors.intStream().anyMatch(color -> filterColors.isEmpty() || filterColors.contains(color)), isBackSide);
+				// CUSTOM LOGIC START
+				// Determine aspect based on lookahead
+				int occupiedAspect;
+
+				// 1. Check current block occupancy (Red)
+				boolean isCurrentBlockOccupied = filterColors.isEmpty() && aspectState.nodeBlocked || aspectState.occupiedColors.intStream().anyMatch(color -> filterColors.isEmpty() || filterColors.contains(color));
+
+				if (isCurrentBlockOccupied) {
+					occupiedAspect = 1; // Red
+				} else {
+					// Look ahead for next blocks
+					occupiedAspect = calculateLookAheadAspect(pos, newAngle + 90, filterColors);
+				}
+				// CUSTOM LOGIC END
+
 				render(storedMatrixTransformationsNew, entity, tickDelta, occupiedAspect, isBackSide);
 
 				if (occupiedAspect > 0 && occupiedAspect < aspects) {
@@ -108,6 +124,120 @@ public abstract class RenderSignalBase<T extends BlockSignalBase.BlockEntityBase
 	}
 
 	protected abstract void render(StoredMatrixTransformations storedMatrixTransformations, T entity, float tickDelta, int occupiedAspect, boolean isBackSide);
+
+	// New helper method to calculate aspect based on future blocks
+	private int calculateLookAheadAspect(BlockPos startBlockPos, float angle, IntAVLTreeSet currentSignalColors) {
+		final ClientWorld clientWorld = MinecraftClient.getInstance().getWorldMapped();
+		if (clientWorld == null) return 1; // Default to Red if world null
+
+		final BlockPos startNodePos = getNodePos(clientWorld, startBlockPos, Direction.fromRotation(angle));
+		if (startNodePos == null) return 1;
+
+		// Start recursive search
+		// Returns 3 for Double Yellow, 2 for Yellow, 0 for Green
+		return traverseRails(Init.blockPosToPosition(startNodePos), angle, currentSignalColors, 0, 0, new HashSet<>());
+	}
+
+	/**
+	 * @param currentPos Current node position
+	 * @param angle Current angle of travel
+	 * @param trackingSignalColors The signal colors of the "current" block we are traversing
+	 * @param distanceInCurrentBlock Distance traveled in the current block
+	 * @param depth How many blocks ahead we are (0 = current, 1 = next, 2 = next next)
+	 * @param visited To prevent infinite loops
+	 */
+	private int traverseRails(Position currentPos, float angle, IntAVLTreeSet trackingSignalColors, float distanceInCurrentBlock, int depth, Set<Position> visited) {
+		if (visited.contains(currentPos)) return 0; // Loop detected, assume Green
+		visited.add(currentPos);
+
+		if (depth > 2) return 0; // Lookahead limit reached, assume Green
+
+		final MinecraftClientData clientData = MinecraftClientData.getInstance();
+		final Object2ObjectOpenHashMap<Position, org.mtr.core.data.Rail> rails = clientData.positionsToRail.get(currentPos);
+
+		if (rails == null || rails.isEmpty()) return 0; // End of line
+
+		int mostRestrictiveAspect = 0; // Default Green
+
+		for (Map.Entry<Position, Rail> entry : rails.entrySet()) {
+			Position endPos = entry.getKey();
+			org.mtr.core.data.Rail rail = entry.getValue();
+
+			// Check angle to ensure we don't go backwards
+			double railAngle = Math.toDegrees(Math.atan2(endPos.getZ() - currentPos.getZ(), endPos.getX() - currentPos.getX()));
+			if (Math.abs(Utilities.circularDifference((long) railAngle, (long) angle, 360)) > 90) continue;
+
+			// Determine if this rail starts a new block
+			IntAVLTreeSet railColors = new IntAVLTreeSet();
+			rail.getSignalColors().forEach(railColors::add);
+
+			// Check if signal colors match the block we are currently tracking
+			boolean isSameBlock;
+			if (trackingSignalColors.isEmpty()) {
+				isSameBlock = railColors.isEmpty();
+			} else {
+				// If rail has ANY of the tracking colors, it's considered same block (simplified logic)
+				// Or strictly: sets must intersect? MTR usually treats shared colors as same block.
+				isSameBlock = false;
+				for (int color : trackingSignalColors) {
+					if (railColors.contains(color)) {
+						isSameBlock = true;
+						break;
+					}
+				}
+			}
+
+			// Distance calculation
+			float railLength = (float) Math.sqrt(Math.pow(endPos.getX() - currentPos.getX(), 2) + Math.pow(endPos.getZ() - currentPos.getZ(), 2)); // Approximate length
+
+			int branchAspect;
+			if (isSameBlock) {
+				// Continue in same block
+				branchAspect = traverseRails(endPos, (float) railAngle, trackingSignalColors, distanceInCurrentBlock + railLength, depth, new HashSet<>(visited));
+			} else {
+				// New Block Detected
+				// Check Occupancy of this new block
+				boolean isOccupied = false;
+				for(int color : railColors) {
+					if (clientData.railIdToCurrentlyBlockedSignalColors.values().stream().anyMatch(list -> list.contains(color))) {
+						isOccupied = true;
+						break;
+					}
+				}
+
+				if (isOccupied) {
+					// We found an occupied block ahead
+					if (depth == 0) {
+						// Block 2 (Next Block) is occupied
+						// Check distance of Block 1 (Current Block)
+						if (distanceInCurrentBlock < 250) {
+							branchAspect = 3; // Double Yellow
+						} else {
+							branchAspect = 2; // Yellow
+						}
+					} else {
+						// Block 3 (Next Next Block) is occupied
+						branchAspect = 2; // Yellow
+					}
+				} else {
+					// Block is clear, continue checking next block
+					branchAspect = traverseRails(endPos, (float) railAngle, railColors, 0, depth + 1, new HashSet<>(visited));
+				}
+			}
+
+			// Take the most restrictive aspect found in any branch
+			// Aspects: 1=Red (Handled before), 3=DoubleYellow, 2=Yellow, 0=Green
+			// Priority: 3 > 2 > 0 (Red is handled externally)
+			if (branchAspect == 3) {
+				mostRestrictiveAspect = 3;
+			} else if (branchAspect == 2 && mostRestrictiveAspect != 3) {
+				mostRestrictiveAspect = 2;
+			}
+		}
+
+		return mostRestrictiveAspect;
+	}
+
 
 	@Nullable
 	public static AspectState getAspectState(BlockPos blockPos, float angle) {
@@ -132,27 +262,10 @@ public abstract class RenderSignalBase<T extends BlockSignalBase.BlockEntityBase
 			if (Math.abs(Utilities.circularDifference(Math.round(Math.toDegrees(Math.atan2(endPosition.getZ() - startPos.getZ(), endPosition.getX() - startPos.getX()))), Math.round(angle), 360)) < 90) {
 				rail.getSignalColors().forEach(detectedColors::add);
 				final String railId = rail.getHexId();
-
-				// MODIFIED LOGIC: Check physical occupancy instead of reservation/blocked status
-				// Old Code:
-				// minecraftClientData.railIdToCurrentlyBlockedSignalColors.getOrDefault(railId, new LongArrayList()).forEach(color -> occupiedColors.add((int) color));
-				// if (minecraftClientData.blockedRailIds.contains(TwoPositionsBase.getHexIdRaw(startPosition, endPosition))) {
-				//	blocked[0] = true;
-				// }
-
-				boolean isPhysicallyOccupied = false;
-				for (VehicleExtension vehicle : minecraftClientData.vehicles) {
-					if (vehicle.physicallyOccupiedRails.contains(railId)) {
-						isPhysicallyOccupied = true;
-						break;
-					}
-				}
-
-				if (isPhysicallyOccupied) {
-					rail.getSignalColors().forEach(color -> occupiedColors.add((int) color));
+				minecraftClientData.railIdToCurrentlyBlockedSignalColors.getOrDefault(railId, new LongArrayList()).forEach(color -> occupiedColors.add((int) color));
+				if (minecraftClientData.blockedRailIds.contains(TwoPositionsBase.getHexIdRaw(startPosition, endPosition))) {
 					blocked[0] = true;
 				}
-
 				railIds.add(railId);
 			}
 		});
