@@ -47,6 +47,11 @@ java {
 	withJavadocJar()
 }
 
+// Ensure Java compiler uses UTF-8 encoding to avoid unmappable character errors on Windows
+tasks.withType(org.gradle.api.tasks.compile.JavaCompile).configureEach {
+	options.encoding = 'UTF-8'
+}
+
 tasks.register("setupWebsiteFiles") {
 //	copy {
 //		outputs.upToDateWhen { false }
