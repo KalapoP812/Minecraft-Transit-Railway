@@ -1,0 +1,9 @@
+Summary for libs/Transport-Simulation-Core-0.0.1.jar
+Decompiled with CFR 0.152
+
+
+org.mtr.core.simulation.FileLoader
+----------------------------
+
+readFile(java.util.function.Function<org.mtr.core.serializer.MessagePackReader, T> java.nio.file.Path )
+  Loose catch block

@@ -6,7 +6,9 @@ plugins {
 group "org.mtr.mod"
 version rootProject.properties.version
 
-subprojects {
+def coreSourceModuleName = "transport-simulation-core-source"
+
+configure(subprojects.findAll { it.name != coreSourceModuleName }) {
 	apply plugin: "java"
 	apply plugin: "com.github.johnrengelman.shadow"
 
@@ -19,7 +21,7 @@ subprojects {
 		shadowImplementation "org.mtr:Shadow-Libraries-net:0.0.1"
 		shadowImplementation "org.mtr:Shadow-Libraries-util:0.0.1"
 		shadowImplementation "org.mtr:Minecraft-Mappings-common:0.0.1"
-		shadowImplementation "org.mtr:Transport-Simulation-Core:0.0.1"
+		shadowImplementation project(":${coreSourceModuleName}")
 		shadowImplementation "com.logisticscraft:occlusionculling:+"
 		compileOnly "com.google.code.findbugs:jsr305:+"
 	}

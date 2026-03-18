@@ -62,6 +62,8 @@ gradlew setupFiles -PminecraftVersion="<minecraft version>"
 gradlew build -PminecraftVersion="<minecraft version>"
 ```
 
+The project now uses the dedicated source module `:transport-simulation-core-source` for Transport Simulation Core.
+
 The mod jar file should be generated in the following directory:
 
 ```

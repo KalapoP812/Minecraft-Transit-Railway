@@ -1,0 +1,23 @@
+/*
+ * Decompiled with CFR 0.152.
+ */
+package org.mtr.core.oba;
+
+import org.mtr.core.data.Trip;
+import org.mtr.core.generated.oba.StopTimeSchema;
+import org.mtr.core.serializer.ReaderBase;
+import org.mtr.core.tool.Utilities;
+
+public final class StopTime
+extends StopTimeSchema
+implements Utilities {
+    public StopTime(Trip.StopTime stopTime, long offsetMillis) {
+        super(Utilities.numberToPaddedHexString(stopTime.platformId), (stopTime.startTime + offsetMillis) / 1000L, (stopTime.endTime + offsetMillis) / 1000L, 0L, 0L, stopTime.customDestination);
+    }
+
+    public StopTime(ReaderBase readerBase) {
+        super(readerBase);
+        this.updateData(readerBase);
+    }
+}
+

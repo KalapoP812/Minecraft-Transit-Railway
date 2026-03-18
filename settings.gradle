@@ -13,5 +13,8 @@ plugins {
 
 include("fabric")
 include("forge")
+include("transport-simulation-core-source")
+
+project(":transport-simulation-core-source").projectDir = file("decompiled/Transport-Simulation-Core")
 
 rootProject.name = "Minecraft-Transit-Railway"
