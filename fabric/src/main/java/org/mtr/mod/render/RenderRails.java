@@ -26,6 +26,7 @@ import org.mtr.mod.client.IDrawing;
 import org.mtr.mod.client.MinecraftClientData;
 import org.mtr.mod.config.Config;
 import org.mtr.mod.data.IGui;
+import org.mtr.mod.data.RailAngleHelper;
 import org.mtr.mod.data.RailType;
 import org.mtr.mod.generated.lang.TranslationProvider;
 import org.mtr.mod.item.ItemBlockClickingBase;
@@ -119,9 +120,9 @@ public class RenderRails implements IGui {
 
 					if (blockStateEnd.getBlock().data instanceof BlockNode) {
 						final BlockState blockStateStart = clientWorld.getBlockState(posStart);
-						final float angleEnd = BlockNode.getAngle(blockStateEnd);
-						final ObjectObjectImmutablePair<Angle, Angle> angles = Rail.getAngles(
-								Init.blockPosToPosition(posStart), blockStateStart.getBlock().data instanceof BlockNode ? BlockNode.getAngle(blockStateStart) : blockStateEnd.getBlock().data instanceof BlockNode.BlockContinuousMovementNode ? angleEnd : EntityHelper.getYaw(new Entity(clientPlayerEntity.data)) + 90,
+						final float angleEnd = BlockNode.getAngle(clientWorld, posEnd, blockStateEnd);
+						final ObjectObjectImmutablePair<Angle, Angle> angles = RailAngleHelper.getAngles(
+								Init.blockPosToPosition(posStart), blockStateStart.getBlock().data instanceof BlockNode ? BlockNode.getAngle(clientWorld, posStart, blockStateStart) : blockStateEnd.getBlock().data instanceof BlockNode.BlockContinuousMovementNode ? angleEnd : EntityHelper.getYaw(new Entity(clientPlayerEntity.data)) + 90,
 								Init.blockPosToPosition(posEnd), angleEnd
 						);
 
@@ -188,8 +189,19 @@ public class RenderRails implements IGui {
 			// Render nodes
 			MinecraftClientData.getInstance().positionsToRail.keySet().forEach(position -> {
 				final BlockPos blockPos = Init.positionToBlockPos(position);
-				renderNode(clientWorld.getBlockState(blockPos), blockPos, () -> true, GraphicsHolder.getDefaultLight());
+				renderNode(clientWorld, clientWorld.getBlockState(blockPos), blockPos, () -> true, GraphicsHolder.getDefaultLight());
 			});
+
+			// Render unconnected nodes that have a custom angle using the normal node light.
+			for (int x = -INVALID_NODE_CHECK_RADIUS; x <= INVALID_NODE_CHECK_RADIUS; x++) {
+				for (int y = -INVALID_NODE_CHECK_RADIUS; y <= INVALID_NODE_CHECK_RADIUS; y++) {
+					for (int z = -INVALID_NODE_CHECK_RADIUS; z <= INVALID_NODE_CHECK_RADIUS; z++) {
+						final BlockPos blockPos = clientPlayerEntity.getBlockPos().add(x, y, z);
+						final BlockState blockState = clientWorld.getBlockState(blockPos);
+						renderNode(clientWorld, blockState, blockPos, () -> blockState.getBlock().data instanceof BlockNode && !blockState.get(new Property<>(BlockNode.IS_CONNECTED.data)) && BlockNode.hasCustomAngle(clientWorld, blockPos), GraphicsHolder.getDefaultLight());
+					}
+				}
+			}
 
 			// Render nodes with the connected block state but isn't actually connected
 			for (int x = -INVALID_NODE_CHECK_RADIUS; x <= INVALID_NODE_CHECK_RADIUS; x++) {
@@ -197,7 +209,7 @@ public class RenderRails implements IGui {
 					for (int z = -INVALID_NODE_CHECK_RADIUS; z <= INVALID_NODE_CHECK_RADIUS; z++) {
 						final BlockPos blockPos = clientPlayerEntity.getBlockPos().add(x, y, z);
 						final BlockState blockState = clientWorld.getBlockState(blockPos);
-						renderNode(blockState, blockPos, () -> blockState.get(new Property<>(BlockNode.IS_CONNECTED.data)) && !MinecraftClientData.getInstance().positionsToRail.containsKey(Init.blockPosToPosition(blockPos)), MainRenderer.getFlashingLight());
+						renderNode(clientWorld, blockState, blockPos, () -> blockState.get(new Property<>(BlockNode.IS_CONNECTED.data)) && !MinecraftClientData.getInstance().positionsToRail.containsKey(Init.blockPosToPosition(blockPos)), MainRenderer.getFlashingLight());
 					}
 				}
 			}
@@ -336,16 +348,21 @@ public class RenderRails implements IGui {
 		}, interval, offsetRadius1, offsetRadius2);
 	}
 
-	private static void renderNode(BlockState blockState, BlockPos blockPos, BooleanSupplier shouldRender, int light) {
+	private static void renderNode(ClientWorld clientWorld, BlockState blockState, BlockPos blockPos, BooleanSupplier shouldRender, int light) {
 		if (blockState.getBlock().data instanceof BlockNode && shouldRender.getAsBoolean()) {
 			final StoredMatrixTransformations storedMatrixTransformations = new StoredMatrixTransformations(blockPos.getX() + 0.5, blockPos.getY(), blockPos.getZ() + 0.5);
 			storedMatrixTransformations.add(graphicsHolder -> {
-				graphicsHolder.rotateYDegrees((blockState.get(new Property<>(BlockNode.FACING.data)) ? -90 : 0) + (blockState.get(new Property<>(BlockNode.IS_45.data)) ? -45 : 0) + (blockState.get(new Property<>(BlockNode.IS_22_5.data)) ? -22.5F : 0));
+				graphicsHolder.rotateYDegrees(getNodeRotationDegrees(BlockNode.getAngle(clientWorld, blockPos, blockState)));
 				graphicsHolder.scale(4, 0.5F, 0.5F);
 				graphicsHolder.translate(-0.5, 0, -0.5);
 			});
 			MODEL_SMALL_CUBE.render(storedMatrixTransformations, light);
 		}
+	}
+
+	private static float getNodeRotationDegrees(float nodeAngle) {
+		final float normalizedHalfTurn = (nodeAngle % 180 + 180) % 180;
+		return normalizedHalfTurn < 90 ? -90 - normalizedHalfTurn : 90 - normalizedHalfTurn;
 	}
 
 	private static void renderRailStats(BlockPos renderPos, @Nullable BlockPos otherPos, double railLength, double closerRadius, double otherRadius) {

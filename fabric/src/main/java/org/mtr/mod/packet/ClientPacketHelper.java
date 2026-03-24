@@ -80,6 +80,10 @@ public final class ClientPacketHelper {
 		openScreen(new RailModifierScreen(railId), screenExtension -> screenExtension instanceof RailModifierScreen);
 	}
 
+	public static void openNodeCustomAngleScreen(BlockPos blockPos) {
+		openScreen(new NodeCustomAngleScreen(blockPos), screenExtension -> screenExtension instanceof NodeCustomAngleScreen);
+	}
+
 	public static void openTicketMachineScreen(int balance) {
 		openScreen(new TicketMachineScreen(balance), screenExtension -> screenExtension instanceof TicketMachineScreen);
 	}

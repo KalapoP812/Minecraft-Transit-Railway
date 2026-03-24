@@ -23,6 +23,7 @@ public final class BlockEntityTypes {
 		LIFT_PANEL_ODD_1 = Init.REGISTRY.registerBlockEntityType(new Identifier(Init.MOD_ID, "lift_panel_odd_1"), BlockLiftPanelOdd1.BlockEntity::new, Blocks.LIFT_PANEL_ODD_1::get);
 		LIFT_PANEL_ODD_2 = Init.REGISTRY.registerBlockEntityType(new Identifier(Init.MOD_ID, "lift_panel_odd_2"), BlockLiftPanelOdd2.BlockEntity::new, Blocks.LIFT_PANEL_ODD_2::get);
 		LIFT_TRACK_FLOOR_1 = Init.REGISTRY.registerBlockEntityType(new Identifier(Init.MOD_ID, "lift_track_floor_1"), BlockLiftTrackFloor.BlockEntity::new, Blocks.LIFT_TRACK_FLOOR_1::get);
+		NODE = Init.REGISTRY.registerBlockEntityType(new Identifier(Init.MOD_ID, "node"), BlockNode.BlockEntity::new, Blocks.RAIL_NODE::get, Blocks.BOAT_NODE::get, Blocks.CABLE_CAR_NODE_LOWER::get, Blocks.CABLE_CAR_NODE_UPPER::get, Blocks.CABLE_CAR_NODE_STATION::get, Blocks.AIRPLANE_NODE::get);
 		PIDS_HORIZONTAL_1 = Init.REGISTRY.registerBlockEntityType(new Identifier(Init.MOD_ID, "pids_1"), BlockPIDSHorizontal1.BlockEntity::new, Blocks.PIDS_1::get);
 		PIDS_HORIZONTAL_2 = Init.REGISTRY.registerBlockEntityType(new Identifier(Init.MOD_ID, "pids_2"), BlockPIDSHorizontal2.BlockEntity::new, Blocks.PIDS_2::get);
 		PIDS_HORIZONTAL_3 = Init.REGISTRY.registerBlockEntityType(new Identifier(Init.MOD_ID, "pids_3"), BlockPIDSHorizontal3.BlockEntity::new, Blocks.PIDS_3::get);
@@ -89,6 +90,7 @@ public final class BlockEntityTypes {
 	public static final BlockEntityTypeRegistryObject<BlockLiftPanelOdd1.BlockEntity> LIFT_PANEL_ODD_1;
 	public static final BlockEntityTypeRegistryObject<BlockLiftPanelOdd2.BlockEntity> LIFT_PANEL_ODD_2;
 	public static final BlockEntityTypeRegistryObject<BlockLiftTrackFloor.BlockEntity> LIFT_TRACK_FLOOR_1;
+	public static final BlockEntityTypeRegistryObject<BlockNode.BlockEntity> NODE;
 	public static final BlockEntityTypeRegistryObject<BlockPIDSHorizontal1.BlockEntity> PIDS_HORIZONTAL_1;
 	public static final BlockEntityTypeRegistryObject<BlockPIDSHorizontal2.BlockEntity> PIDS_HORIZONTAL_2;
 	public static final BlockEntityTypeRegistryObject<BlockPIDSHorizontal3.BlockEntity> PIDS_HORIZONTAL_3;

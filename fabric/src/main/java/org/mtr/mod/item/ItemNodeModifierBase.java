@@ -13,6 +13,7 @@ import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectObjectImmutablePair
 import org.mtr.mapping.holder.*;
 import org.mtr.mod.Init;
 import org.mtr.mod.block.BlockNode;
+import org.mtr.mod.data.RailAngleHelper;
 import org.mtr.mod.generated.lang.TranslationProvider;
 
 import javax.annotation.Nullable;
@@ -52,7 +53,7 @@ public abstract class ItemNodeModifierBase extends ItemBlockClickingBase {
 		if (ServerPlayerEntity.isInstance(player) && stateEnd.getBlock().data instanceof BlockNode && ((BlockNode) blockStart.data).transportMode.toString().equals(compoundTag.getString(TAG_TRANSPORT_MODE))) {
 			if (isConnector) {
 				if (!posStart.equals(posEnd)) {
-					final ObjectObjectImmutablePair<Angle, Angle> angles = Rail.getAngles(Init.blockPosToPosition(posStart), BlockNode.getAngle(stateStart), Init.blockPosToPosition(posEnd), BlockNode.getAngle(stateEnd));
+					final ObjectObjectImmutablePair<Angle, Angle> angles = RailAngleHelper.getAngles(Init.blockPosToPosition(posStart), BlockNode.getAngle(world, posStart, stateStart), Init.blockPosToPosition(posEnd), BlockNode.getAngle(world, posEnd, stateEnd));
 					onConnect(world, context.getStack(), ((BlockNode) blockStart.data).transportMode, stateStart, stateEnd, posStart, posEnd, angles.left(), angles.right(), ServerPlayerEntity.cast(player));
 				}
 			} else {

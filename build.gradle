@@ -19,7 +19,12 @@ subprojects {
 		shadowImplementation "org.mtr:Shadow-Libraries-net:0.0.1"
 		shadowImplementation "org.mtr:Shadow-Libraries-util:0.0.1"
 		shadowImplementation "org.mtr:Minecraft-Mappings-common:0.0.1"
-		shadowImplementation "org.mtr:Transport-Simulation-Core:0.0.1"
+		final File patchedCoreJar = rootProject.file("libs/Transport-Simulation-Core-0.0.1-patched.jar")
+		if (patchedCoreJar.exists()) {
+			shadowImplementation files(patchedCoreJar)
+		} else {
+			shadowImplementation "org.mtr:Transport-Simulation-Core:0.0.1"
+		}
 		shadowImplementation "com.logisticscraft:occlusionculling:+"
 		compileOnly "com.google.code.findbugs:jsr305:+"
 	}
